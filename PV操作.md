@@ -415,3 +415,509 @@ B车间 {
 }
 ```
 
+
+
+# 10.缓冲区问题（容量为80的缓冲区）
+
+```
+char Buffer[80];
+semaphore empty = 80;
+semaphore full = 0;
+semaphore mutex = 1;
+int count = 0;
+
+Pi（） {
+    while (true) {
+        P(empty);
+        str = getStr();    //生产一个字符
+        P(mutex);
+        Buffer[count++] = str;    //放一个字符
+        if (count == 80) {
+            V(full);
+        }
+        V(mutex);
+    }
+}
+
+Q() {
+    while(true) {
+        P(full);
+        P(mutex);
+        for (int i=0; i<80; i++) {
+            read(Buffer[i]);
+            V(empty);
+        }
+        count = 0;
+        V(mutex);
+    }
+}
+```
+
+
+
+# 11.缓冲区变式（三个生产者，三个消费者）
+
+```
+semaphore full = 1;
+semaphore emptyi = 0;    //i=1,2,3
+
+PSi(i=1,2,3) {
+    while (true) {
+        P(full);
+        send(Mi);
+        V(emptyi);
+    }
+}
+
+PRi(i=1,2,3) {
+    while (true) {
+        P(emptyi);
+        receive(Mi);
+        V(full);
+    }
+}
+```
+
+
+
+# 12.哲学家就餐问题
+
+```
+semaphore chopstics[5] = {1,1,1,1,1}
+semaphore mutex = 1;
+
+Pi() {
+    while (true) {
+        P(mutex);    //当一个哲学家拿筷子时，其它的哲学家不能动
+        P(chopstics[i]);        //拿起左边的筷子
+        P(chopstics[(i+1)%5]);    //拿起右边的筷子
+        进餐;
+        V(mutex);
+        V(chopstics[i]);
+        V(chopstics[(i+1)%5]);
+        思考;
+    }
+}
+```
+
+
+
+# 13.农夫猎人问题
+
+```
+semaphore cage = 1;
+semaphore tiger = 0;
+semaphore sheep = 0;
+
+hunter() {
+    while(true) {
+        P(cage);
+        放老虎;
+        V(tiger);
+    }
+    
+}
+
+farmer() {
+    while(true) {
+        P(cage);
+        放羊;
+        V(sheep);
+    }
+}
+
+zoo() {
+    while(true) {
+        P(tiger);
+        取老虎;
+        V(cage);
+    }    
+}
+
+hotel() {
+    while (true) {
+        P(sheep);
+        取羊;
+        V(cage);
+    }
+}
+```
+
+
+
+# 14.银行业务问题
+
+```
+semaphore server_count = n;		//服务员数
+semaphore customer_count = 0;	//顾客数
+semaphore mutex = 1;	//对座位区的互斥访问量
+
+Customer-i(i=1,2,3) {
+    取号
+    P(mutex);
+    等待区找空沙发坐下;
+    V(mutex);
+    V(customer_count);
+    P(server_count);
+}
+
+Server-j(i=1,2,3) {
+    while(true) {
+        P(customer_count);
+        P(mutex);
+        叫号;
+        V(mutex);
+        服务;
+        客人离开;
+        V(server_count);
+    }
+}
+```
+
+
+
+# 15.黑白棋子问题
+
+这是一个交替访问问题
+
+```
+semaphore s1 = 1;	//假设先拣白子
+semaphore s2 = 0;
+
+P1() [
+    while(true) {
+        P(s1);
+        拣白子;
+        V(s2);
+    }
+]
+
+P2() {
+    while (true) {
+        P(s2);
+        拣黑子;
+        V(s1);
+    }
+}
+```
+
+
+
+# 16.黑白棋子问题变式（50个棋子）
+
+```
+//下面两个信号量用于计数
+semaphore white_count = 50;
+semaphore black_count = 50;
+//下面两个信号量用于互斥
+semaphore s1 = 1;	//先黑后白
+semaphore s2 = 0;
+
+Zhang() {
+	while (true) {
+		P(s2);
+		P(white_count);
+		拣白子;
+		V(s1);
+	}
+}
+
+Li() {
+	while (true) {
+		P(s1);
+		P(black_count);
+		拣黑子;
+		V(s2);
+	}
+}
+```
+
+
+
+# 17.独木桥问题
+
+```
+int east_count = 0;	//东边的汽车数量
+int west_count = 0;	//西边的汽车数量
+semaphore bridge = 1;	//互斥访问桥
+semaphore east_mutex = 1;	//互斥访问east_count
+semaphore west_mutex = 1;	//互斥访问west_count
+
+east() {
+    while(true) {
+        P(east_mutex);	//请求东边的登记表
+        if (east_count == 0) {
+            P(bridge);
+        }
+        east_count++;	//东边汽车数量加1
+        V(east_mutex);	//返还东边的登记表
+        东边的汽车过桥;
+        P(east_mutex);	//请求东边的登记表
+        east_count--;
+        if (east_count == 0) {
+            V(bridge);
+        }
+        V(east_mutex);	//返还东边的登记表
+    }
+}
+
+west() {	//和上边的代码完全一致
+    while(true) {
+        P(west_mutex);
+        if (west_count == 0) {
+            P(bridge);
+        }
+        west_count++;
+        V(west_mutex);
+        西边的汽车过桥;
+        P(west_mutex);
+        west_count--;
+        if (west_count == 0) {
+            V(bridge);
+        }
+        V(west_mutex);
+    }
+}
+```
+
+
+
+# 18.独木桥问题变式一（桥面上最多k辆车）
+
+```
+int east_count = 0;	//东边的汽车数量
+int west_count = 0;	//西边的汽车数量
+semaphore bridge = 1;	//互斥访问桥
+semaphore east_mutex = 1;	//互斥访问east_count
+semaphore west_mutex = 1;	//互斥访问west_count
+semaphore capacity = k;
+
+east() {
+    while(true) {
+        P(east_mutex);	
+        if (east_count == 0) {
+            P(bridge);
+        }
+        east_count++;	
+        V(east_mutex);	
+        P(capacity);	//只需要在上一题的基础上，增加一个PV操作
+        东边的汽车过桥;
+        V(capacity);
+        P(east_mutex);	
+        east_count--;
+        if (east_count == 0) {
+            V(bridge);
+        }
+        V(east_mutex);	
+    }
+}
+
+west() {	//和上边的代码完全一致
+    while(true) {
+        P(west_mutex);
+        if (west_count == 0) {
+            P(bridge);
+        }
+        west_count++;
+        V(west_mutex);
+        P(capacity);	//只需要在上一题的基础上，增加一个PV操作
+        西边的汽车过桥;
+        P(west_mutex);
+        V(capacity);
+        west_count--;
+        if (west_count == 0) {
+            V(bridge);
+        }
+        V(west_mutex);
+    }
+}
+```
+
+
+
+# 19.独木桥问题变式二（串行过桥，能够阻止对方后继车辆）
+
+```
+int east_count = 0;	//东边的汽车数量
+int west_count = 0;	//西边的汽车数量
+semaphore bridge = 1;	//互斥访问桥
+semaphore east_mutex = 1;	//互斥访问east_count
+semaphore west_mutex = 1;	//互斥访问west_count
+semaphore pass = 1;	//只需要在原题的基础上，增加一个pass信号量
+
+east() {
+    while(true) {
+    	P(pass);
+        P(east_mutex);	
+        if (east_count == 0) {
+            P(bridge);
+        }
+        east_count++;	
+        V(east_mutex);	
+        V(pass);
+        东边的汽车过桥;
+        P(east_mutex);	
+        east_count--;
+        if (east_count == 0) {
+            V(bridge);
+        }
+        V(east_mutex);	
+    }
+}
+
+west() {	//和上边的代码完全一致
+    while(true) {
+    	P(pass);
+        P(west_mutex);
+        if (west_count == 0) {
+            P(bridge);
+        }
+        west_count++;
+        V(west_mutex);
+        V(pass);
+        西边的汽车过桥;
+        P(west_mutex);
+        west_count--;
+        if (west_count == 0) {
+            V(bridge);
+        }
+        V(west_mutex);
+    }
+}
+```
+
+
+
+# 20.独木桥问题变式三（以组为单位交替通过汽车）
+
+```
+int east_count = 0;	//东边的汽车数量
+int west_count = 0;	//西边的汽车数量
+semaphore bridge = 1;	//互斥访问桥
+semaphore east_mutex = 1;	//互斥访问east_count
+semaphore west_mutex = 1;	//互斥访问west_count
+
+east() {
+    while(true) {
+    	P(s1);	//用于实现交替过桥
+        P(east_mutex);	
+        if (east_count == 0) {
+            P(bridge);
+        }
+        east_count++;	
+        V(east_mutex);	
+        东边的汽车过桥;
+        V(s2);	//用于实现交替过桥
+        P(east_mutex);	
+        east_count--;
+        east_pass++;	//记录东面这次过桥的汽车数量
+        if (east_count == 0 && east_pash == 3) {	
+        	east_pass = 0;	//重新计数
+            V(bridge);
+        }
+        V(east_mutex);	
+    }
+}
+
+west() {	
+    while(true) {
+    	P(s2);
+        P(west_mutex);
+        if (west_count == 0) {
+            P(bridge);
+        }
+        west_count++;
+        V(west_mutex);
+        西边的汽车过桥;
+        V(s1);
+        P(west_mutex);
+        west_count--;
+        west_pass++;
+        if (west_count == 0 && west_pass == 3) {
+        	west_pass = 0;
+            V(bridge);
+        }
+        V(west_mutex);
+    }
+}
+```
+
+
+
+# 21.机房问题
+
+```
+semaphore computerCounter = 2m;	//计算机数量
+semaphore mutex = 1;
+semaphore finish = 0;
+semaphore test = 0;
+semaphore enter = 0;
+int rc = 0;	//学生数，初始化为0
+
+student(i=1,2,3...) {
+	P(computerCounter);	//没有空机器就一直等待
+	P(mutex);	//rc是公共变量，多个学生可以同时访问，故需要互斥访问
+	rc++;
+	if (rc == 1) {	//如果想上机的学生只有一个
+		V(mutex);	//把互斥访问权让出去，使后来的学生可以访问这个变量
+		P(enter);	//等待搭档来才可以上机
+	} else {
+		rc = 0;		//两个学生进去后，把计数器置0
+		V(mutex);	//把互斥访问访问权让出去
+		V(enter);	
+	}
+	学生上机;
+	V(finish);
+	P(test);	//等待老师检查
+	V(computerCounter);
+}
+
+teacher() {
+	while (true) {
+		P(finish);	//同一组的第一个学生好了
+		P(finish);	//同一组的第二个学生好了
+		检查实习结果;
+		V(test);	//检查完一号学生
+		V(test);	//检查完二号学生
+	}
+}
+```
+
+
+
+# 22.阅览室问题
+
+```
+struct{
+	char name[10];
+	int number;
+}A[100];
+for (int i=0; i<100; i++) {
+	A[i].number = i;
+	A[i].name = null;
+}
+
+semaphore mutex = 1;
+semaphore seatCount = 100;
+
+reader() {
+	int no;	//方便出馆时找到自己注销
+	P(seatCount);
+	P(mutex);	//登记表是公共变量，需要互斥访问
+	for (int i=0; i<100; i++) {
+		if (A[i].name == null) {
+			A[i].name = readName;
+			no = i;
+		}
+	}
+	V(mutex);
+	找到位置，坐下读书;
+	P(mutex);
+	A[no].name == null;
+	V(mutex);
+	V(seatCount);
+	离开阅览室;
+	
+}
+```
+
