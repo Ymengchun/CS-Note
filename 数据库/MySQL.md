@@ -385,7 +385,7 @@ SELECT * FROM student WHERE NAME LIKE '%德%';
 语法：
 
 1. count：计算个数
-    
+   
     一般选择非空的列：主键
     
     count(*)：计算总数
@@ -529,7 +529,7 @@ MySQL忘记用户密码
 3. 唯一约束：unique        
 4. 外键约束：foreign key
 
-## 1.主键约束
+## 主键约束
 
 语法：primary key
 
@@ -568,7 +568,7 @@ MySQL忘记用户密码
 
 
 
-## 2.非空约束
+## 非空约束
 
 语法：not null，值不能为null
 
@@ -587,7 +587,7 @@ MySQL忘记用户密码
 
 
 
-## 3.唯一约束
+## 唯一约束
 
 语法：unique，值不能重复
 
@@ -606,7 +606,7 @@ MySQL忘记用户密码
 
 
 
-## 4.外键约束
+## 外键约束
 
 语法：foreign key，让表与表产生关系，从而保证数据的正确性
 
@@ -622,4 +622,76 @@ MySQL忘记用户密码
 
 2. 创建完表后，添加外键： ALTER TABLE 表名 ADD CONSTRAINT 外键名称 FOREIGN KEY (外键字段名称) REFERENCES 主表名称(主表列名称);
 
-3. 删除外键：
+3. 删除外键：ALTER TABLE 表名 DROP 外键名称
+
+4. 级联操作：
+
+   * 添加级联操作：ALTER TABLE 表名 ADD CONSTRAINT 外键名称 FOREIGN KEY (外键字段名称) REFERENCES 主表名称(主表列名称) ON UPDATE CASCADE ON DELETE CASCADE  ;
+   * 分类：
+     * 级联更新：ON UPDATE CASCADE            
+     * 级联删除：ON DELETE CASCADE
+
+
+
+# 多表关系
+
+多表之间的关系有：一对一，一对多，多对一，多对多
+
+实现
+
+* 一对一：在任意一方添加唯一外键指向另一方的主键
+* 一对多(多对一)：在多的一方建立外键，指向一的一方的主键
+* 多对多：借助第三张中间表。中间表至少包含两个字段，这两个字段作为第三张表的外键，分别指向两张表的主键
+
+指向：关键字 REFERENCES
+
+案例
+
+```
+-- 创建旅游线路分类表 tab_category
+-- cid 旅游线路分类主键，自动增长
+-- cname 旅游线路分类名称非空，唯一，字符串 100
+CREATE TABLE tab_category (
+	cid INT PRIMARY KEY AUTO_INCREMENT,
+    cname VARCHAR(100) NOT NULL UNIQUE
+);
+```
+
+```
+-- 创建旅游线路表 tab_route
+/*
+rid 旅游线路主键，自动增长
+rname 旅游线路名称非空，唯一，字符串 100
+price 价格
+rdate 上架时间，日期类型
+cid 外键，所属分类
+*/
+CREATE TABLE tab_route(
+	rid INT PRIMARY KEY AUTO_INCREMENT,
+    rname VARCHAR(100) NOT NULL UNIQUE,
+    price DOUBLE,
+    rdate DATE,
+    cid INT,
+    FOREIGN KEY (cid) REFERENCES tab_category(cid)
+);            
+```
+
+```
+/*
+创建收藏表 tab_favorite
+rid 旅游线路 id，外键
+date 收藏时间
+uid 用户 id，外键
+rid 和 uid 不能重复，设置复合主键，同一个用户不能收藏同一个线路两次
+*/
+CREATE TABLE tab_favorite (
+	rid INT, -- 线路id
+    DATE DATETIME,
+    uid INT, -- 用户id
+    -- 创建复合主键
+    PRIMARY KEY(rid,uid), -- 联合主键
+    FOREIGN KEY (rid) REFERENCES tab_route(rid),
+    FOREIGN KEY(uid) REFERENCES tab_user(uid)
+);
+```
+
