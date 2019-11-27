@@ -633,7 +633,9 @@ MySQL忘记用户密码
 
 
 
-# 多表关系
+# 多表查询
+
+## 多表关系
 
 多表之间的关系有：一对一，一对多，多对一，多对多
 
@@ -697,166 +699,209 @@ CREATE TABLE tab_favorite (
 
 
 
+## 多表查询
 
-
-
-
-
-
-# 事务
-
-## 事务
-
-事务：一系列操作，要么全部成功，要么全部失败
-
-
-
-**事务操作**
-
-* 开启事务： start transaction;	将若干操作包装成一个事务
-* 回滚：rollback；   组成事务的一系列操作中只要一个出错，所有操作都会rollback
-* 提交：commit;    MySQL中事务默认自动提交
-
-
-
-事务例子
+语法
 
 ```
-CREATE TABLE account (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    NAME VARCHAR(10),
-    balance DOUBLE
+select
+	列名列表
+from
+	表名列表
+where....
+```
+
+
+
+创建表
+
+```
+# 创建部门表
+CREATE TABLE dept(
+	id INT PRIMARY KEY AUTO_INCREMENT,
+    NAME VARCHAR(20)
 );
-
--- 添加数据
-INSERT INTO account (NAME, balance) VALUES ('zhangsan', 1000), ('lisi', 1000);
-
-SELECT * FROM account;
-
-
--- 张三给李四转账 500 元
--- 0. 开启事务
-START TRANSACTION;
--- 1. 张三账户 -500
-UPDATE account SET balance = balance - 500 WHERE NAME = 'zhangsan';
--- 2. 李四账户 +500
--- （可能出错了...）
-UPDATE account SET balance = balance + 500 WHERE NAME = 'lisi';
-
-
--- 发现执行没有问题，提交事务
-COMMIT;
-
--- 发现出问题了，回滚事务
-ROLLBACK;
+INSERT INTO dept (NAME) VALUES ('开发部'),('市场部'),('财务部');
+# 创建员工表
+CREATE TABLE emp (
+	id INT PRIMARY KEY AUTO_INCREMENT,
+    NAME VARCHAR(10),
+    gender CHAR(1), -- 性别
+    salary DOUBLE, -- 工资
+    join_date DATE, -- 入职日期
+    dept_id INT,
+    FOREIGN KEY (dept_id) REFERENCES dept(id) -- 外键，关联部门表(部门表的主键)
+);
+INSERT INTO emp(NAME,gender,salary,join_date,dept_id) VALUES('孙悟空','男',7200,'2013-02-24',1);
+INSERT INTO emp(NAME,gender,salary,join_date,dept_id) VALUES('猪八戒','男',3600,'2010-12-02',2);
+INSERT INTO emp(NAME,gender,salary,join_date,dept_id) VALUES('唐僧','男',9000,'2008-08-08',2);
+INSERT INTO emp(NAME,gender,salary,join_date,dept_id) VALUES('白骨精','女',5000,'2015-10-07',3);
+INSERT INTO emp(NAME,gender,salary,join_date,dept_id) VALUES('蜘蛛精','女',4500,'2011-03-14',1);
 ```
 
 
 
-**设置回滚点**
+## 笛卡尔积
 
-* 设置回滚点：savepoint 名字;
+笛卡尔积：有两个集合A和B，取这两个集合的所有组合情况。
 
-* 回到回滚点：rollback to 名字;
-
-```
-start transaction;    --事务开启
-update account set balance=balance-500 where name='zhangsan';
-update account set balance=balance-500 where name='zhangsan';
-update account set balance=balance-500 where name='zhangsan';
-savepoint three_times;    
-select * from account where name='zhangsan';    ---500
-update account set balance=balance+500 where name='zhangsan';
-update account set balance=balance+500 where name='zhangsan';
-update account set balance=balance+500 where name='zhangsan';
-rollback to three_times;
-select * from account where name='zhangsan';    ---1000
-```
+但是要完成多表查询，需要消除无用的数据。
 
 
 
-**事务提交的两种方式**
+## 多表查询的分类
 
-1. 自动提交：mysql就是自动提交的，一条DML(增删改)语句会自动提交一次事务
-2. 手动提交：需要先开启事务，再提交；Oracle 默认手动提交事务
-3. 修改事务的默认提交方式：
-   * 查看事务的默认提交方式：SELECT @@autocommit;     -- 1 代表自动提交  0 代表手动提交
-   * 修改默认提交方式： set @@autocommit = 0;    或    set @@autocommit = 1;
+### 内连接查询
 
+1. 隐式内连接：使用where条件消除无用数据
 
+   ```
+   -- 查询所有员工信息和对应的部门信息
+   SELECT * 
+   FROM 
+   	emp,
+   	dept 
+   WHERE 
+   	emp.`dept_id` = dept.`id`;
+   
+   -- 查询员工表的名称，性别；部门表的名称
+   -- 方法一
+   SELECT 
+   	emp.name,
+   	emp.gender,
+   	dept.name 
+   FROM 
+   	emp,
+   	dept 
+   WHERE 
+   	emp.`dept_id` = dept.`id`;
+   
+   -- 方法二
+   -- 起别名
+   SELECT
+   	t1.name, -- 员工表的姓名
+   	t1.gender,-- 员工表的性别
+   	t2.name -- 部门表的名称
+   FROM
+       emp t1,
+       dept t2
+   WHERE
+       t1.`dept_id` = t2.`id`;
+   ```
 
-**事务的四大特征（ACID）**
+   
 
-1. 原子性（Atomicity）：事务不可分割，最小操作单位，要么同时成功，要么同时失败
-2. 一致性（Consistency）：事务操作前后，数据总量不变
-3. 持久性（Durability）：事务提交或回滚后，数据库会持久化保存数据
-4. 隔离性（Isolation）：多个事务之间，相互独立
+2. 显式内连接：join···on···
+   语法： select 字段列表 from 表名1 [inner] join 表名2 on 条件
+   例如：
 
-以转账为例
+   ​		SELECT * FROM emp INNER JOIN dept ON emp.`dept_id` = dept.`id`;    
 
-* 原子性：要么转，要么不转
-* 持久性：关机、数据库异常不会改变数据
-* 隔离性：张三给李四转账，李四给张三转账是独立的两个事务
-* 一致性：转账前一人1000元，转账后一人500一人1500，但总量还是2000
-
-
-
-## 事务的隔离级别
-
-为什么要设置事务的隔离级别：多个并发事务同时访问同一批数据，会引发一些问题，设置不同的隔离级别可以解决这些问题。
-
-
-
-**并发事务引发的问题**
-
-1. 脏读：一个事务，读取了另一个事务中未被提交的数据
-2. 不可重复读(虚读)：同一事务，两次读取到的数据不一样
-3. 幻读：一个事务操作(DML)数据表中所有记录，另一个事务添加了一条数据，则第一个事务查询不到自己的修改
-
-不可重复读、脏读、幻读的区别
-
-* 脏读是某一事务读取了**另一个事务**未提交的脏数据
-* 不可重复读则是读取了**同一事务前一次**提交的数据
-* 脏读、不可重复读强调**读取**，幻读强调**修改**
-
-解决脏读：将隔离级别提升为 read commited
-解决不可重复读：将全局的隔离级别提升为 repeatable read
-解决幻读：将全局的隔离级别提升为 serializable
-
-
-
-**隔离级别**
-
-![1574680975602](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\1574680975602.png)
-
-1. read uncommitted（读未提交）： 最低的隔离级别，允许读取尚未提交的数据           
-   * 产生的问题：脏读、不可重复读、幻读
-
-2. read committed（读已提交 ）：允许读取已经提交的数据            
-   * 产生的问题：不可重复读、幻读
-
-3. repeatable read（可重复读） ：对同一字段的多次读取结果都是一致的，除非数据被事务本身修改
-   * 产生的问题：幻读
-
-4. serializable（串行化）：一个事务执行完了，其他事务的SQL才能执行           
-   * 可以解决所有的问题
+   ​		SELECT * FROM emp JOIN dept ON emp.`dept_id` = dept.`id`;    
 
 
 
-注意
-
-* 隔离级别从小到大安全性越来越高，但是效率越来越低
-* MySQL（InnoDB存储）默认的隔离级别：可重复读
-* InnoDB存储在分布式下常用的隔离级别：串行化
+### 外连接查询
 
 
 
-操作
-
-* 查询隔离级别：select @@tx_isolation;
-* 设置隔离级别：set global transaction isolation level  级别字符串;
-* 需要退出MySQL再重新登录才能看到隔离级别的变化
+外连接查询：以某一张表为基表，进行相关查询。取出基表的所有记录，然后逐条与另一张表连接，
+不管能不能匹配，基表最终都会保留。能匹配，正确保留；不能匹配，其他表的字段都置空null。
 
 
 
-演示
+外连接查询分类
+
+1. 左外连接
+
+   语法：select 字段列表 from 表1 left [outer] join 表2 on 条件；                
+
+   查询的是左表所有数据以及两表交集部分     
+
+   ```
+   -- 查询所有员工信息，如果员工有部门，则查询部门名称，没有部门，则不显示部门名称                    SELECT     
+   	t1.*,
+   	t2.`name` 
+   FROM 
+   	emp t1 
+   LEFT JOIN 
+   	dept t2 
+   ON t1.`dept_id` = t2.`id`;
+   ```
+
+   
+
+2. 右外连接
+
+   语法：select 字段列表 from 表1 right [outer] join 表2 on 条件；                
+
+   查询的是右表所有数据以及其交集部分。
+
+   ```
+   SELECT 
+   	* 
+   FROM 
+   	dept t2 
+   RIGHT JOIN 
+   	emp t1 
+   ON 
+   	t1.`dept_id` = t2.`id`;     
+   ```
+
+3. 子查询
+
+   ```
+   -- 查询工资最高的员工信息
+   
+   -- 方法1：两步走
+   -- 1 查询最高的工资是多少 9000
+   SELECT MAX(salary) FROM emp;
+                   
+   -- 2 查询员工信息，并且工资等于9000的
+   SELECT * FROM emp WHERE emp.`salary` = 9000;
+                   
+   -- 方法2：一条sql就完成这个操作：——子查询
+   SELECT * FROM emp WHERE emp.`salary` = (SELECT MAX(salary) FROM emp);
+   ```
+
+   子查询分类
+
+   1. 子查询的结果是单行单列
+
+      子查询可以作为条件，使用运算符去判断。 运算符： > >= < <= =
+
+      ```
+      -- 查询员工工资小于平均工资的人
+      SELECT * FROM emp WHERE emp.salary < (SELECT AVG(salary) FROM emp);
+      ```
+
+   2. 子查询的结果是多行单列                   
+
+      子查询可以作为条件，使用运算符in来判断
+
+      ```
+      -- 查询'财务部'和'市场部'所有的员工信息
+      -- 方法1
+      SELECT id FROM dept WHERE NAME = '财务部' OR NAME = '市场部';
+      SELECT * FROM emp WHERE dept_id = 3 OR dept_id = 2;
+      
+      -- 方法2：子查询
+      SELECT * FROM emp WHERE dept_id IN (SELECT id FROM dept WHERE NAME = '财务部' OR NAME = '市场部');
+      ```
+
+   3. 子查询的结果是多行多列的
+
+      子查询可以作为一张虚拟表参与查询
+
+      ```
+      -- 查询员工入职日期是2011-11-11日之后的员工信息和部门信息
+      -- 子查询
+      SELECT * FROM dept t1 ,(SELECT * FROM emp WHERE emp.`join_date` > '2011-11-11') t2
+      WHERE t1.id = t2.dept_id;
+                          
+      -- 普通内连接
+      SELECT * FROM emp t1,dept t2 WHERE t1.`dept_id` = t2.`id` AND t1.`join_date` >  '2011-11-11'
+      ```
+
+      
+
